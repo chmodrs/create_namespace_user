@@ -1,0 +1,44 @@
+image:
+  name: hashicorp/terraform:light
+  entrypoint:
+    - '/usr/bin/env'
+    - 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+
+before_script:
+  - sh startup.sh
+
+stages:
+  - format_validate_refresh
+  - plan
+  - apply
+  - destroy
+  - trigger
+
+format_validate_refresh:
+  stage: format_validate_refresh
+  script:
+    - terraform fmt -check -diff && terraform validate && terraform refresh
+
+plan:
+  stage: plan
+  script:
+    - terraform plan -out "planfile"
+  dependencies:
+    - format_validate_refresh
+  artifacts:
+    paths:
+      - planfile
+
+apply:
+  stage: apply
+  script:
+    - terraform apply -input=false "planfile"
+  dependencies:
+    - plan
+
+multi-project_pipeline:
+  variables:
+    TF_VAR_namespace: ${TF_VAR_namespace}
+    TF_VAR_password: ${TF_VAR_password}
+  stage: trigger
+  trigger: UNJ/CROSS/SRE/nova-esteira/create_stateful_users
